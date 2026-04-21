@@ -73,8 +73,8 @@ namespace file_storage
                 data.AddRange(buffer.Take(len));
                 if (IsFullHttp(data.ToArray(), ref startBody, ref sizeBody))
                 {
-                    byte[] HTTPAnswer = await ParseHTTP(data.ToArray(), sizeBody, startBody);
-                    await SendAnswer(HTTPAnswer);
+                    byte[] HTTPAnswer = await ParseHTTP(data.ToArray(), startBody, sizeBody);
+                    await SendAnswer(HTTPAnswer, client);
                     data.Clear();
                 }
             }
@@ -85,7 +85,7 @@ namespace file_storage
             string http = Encoding.ASCII.GetString(data);
             if (startBody == -1)
             {
-                startBody = http.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+                startBody = http.IndexOf("\r\n\r\n");
                 if (startBody == -1) return false;
                 startBody += 4;
             }
@@ -108,15 +108,54 @@ namespace file_storage
             return false;
         }
 
-        public async Task<byte[]> ParseHTTP(byte[] data, int sizeBody, int startBody)
+        public async Task<byte[]> ParseHTTP(byte[] data, int startBody, int sizeBody)
         {
+            string http = Encoding.ASCII.GetString(data, 0, startBody);
+            string[] parts = http.Split("\r\n");
+            string[] firstParts = parts[0].Split(' ', 3);
+            string method = firstParts[0];
+            string localPath = firstParts[1];
+            string versionHTTP = firstParts[2];
+            switch (method)
+            {
+                case "PUT":
+                    string? copyFromPath = null;
+                    foreach (string part in parts)
+                    {
+                        if (part.StartsWith("X-Copy-From:"))
+                        {
+                            int pos = part.IndexOf(':');
+                            copyFromPath = part.Substring(pos + 1).Trim();
+                        }
+                    }
+                    if (copyFromPath == null)
+                    {
 
+                    }
+                    else
+                    {
+
+                    }
+                    break;
+                case "GET":
+
+                    break;
+                case "HEAD":
+
+                    break;
+                case "DELETE":
+
+                    break;
+                default:
+                    Console.WriteLine($"Получен неизвестный метод: {method}");
+                    return new byte[0];
+            }
             return new byte[0];
         }
 
-        public async Task SendAnswer(byte[] answer)
+        public async Task SendAnswer(byte[] answer, Socket socket)
         {
-
+            await socket.SendAsync(answer);
         }
     }
 }
