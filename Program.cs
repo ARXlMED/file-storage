@@ -4,7 +4,7 @@
     {
         static async Task Main(string[] args)
         {
-            FileStorageCore fileStorageCore = new FileStorageCore("storage", "127.0.0.3", "12346");
+            FileStorageCore fileStorageCore = new FileStorageCore("FileStorage", "127.0.0.2", "12345");
         }
     }
 }
