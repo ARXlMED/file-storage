@@ -76,6 +76,8 @@ namespace file_storage
                     byte[] HTTPAnswer = await ParseHTTP(data.ToArray(), startBody, sizeBody);
                     await SendAnswer(HTTPAnswer, client);
                     data.Clear();
+                    sizeBody = -1;
+                    startBody = -1;
                 }
             }
         }
@@ -116,6 +118,25 @@ namespace file_storage
             string method = firstParts[0];
             string localPath = firstParts[1];
             string versionHTTP = firstParts[2];
+
+            int status = 500;
+            string statusText = "";
+
+            string relativePath = Uri.UnescapeDataString(localPath);
+            relativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+            relativePath = relativePath.TrimStart(Path.DirectorySeparatorChar);
+            string fullPathFile = Path.Combine(this.path, relativePath);
+
+            bool isDirectory = Directory.Exists(fullPathFile);
+            bool isFile = File.Exists(fullPathFile);
+
+            if (!fullPathFile.StartsWith(this.path, StringComparison.OrdinalIgnoreCase))
+            {
+                status = 403;
+                statusText = "Forbidden";
+                return await BuildHttpResponse(status, statusText, Encoding.UTF8.GetBytes("Защита от доступа к папкам вне файлового хранилища"));
+            }
+
             switch (method)
             {
                 case "PUT":
@@ -128,29 +149,168 @@ namespace file_storage
                             copyFromPath = part.Substring(pos + 1).Trim();
                         }
                     }
+
+                    string? directoryFile = Path.GetDirectoryName(fullPathFile);
+                    if (!string.IsNullOrEmpty(directoryFile)) Directory.CreateDirectory(directoryFile); // если путь не существует то создаем папки до этого пути
+
+                    byte[] body;
+
+                    bool existed = File.Exists(fullPathFile);
+                    status = existed ? 200 : 201;
+                    statusText = existed ? "OK" : "Created";
+
                     if (copyFromPath == null)
                     {
-
+                        body = new byte[sizeBody];
+                        Array.Copy(data, startBody, body, 0, sizeBody);
+                        await File.WriteAllBytesAsync(fullPathFile, body);
+                        return await BuildHttpResponse(status, statusText, Encoding.UTF8.GetBytes("Операция успешно проведена"));
                     }
                     else
                     {
-
+                        string relativePathCopy = Uri.UnescapeDataString(copyFromPath);
+                        relativePathCopy = relativePathCopy.Replace('/', Path.DirectorySeparatorChar);
+                        relativePathCopy = relativePathCopy.TrimStart(Path.DirectorySeparatorChar);
+                        string fullPathFileCopy = Path.Combine(this.path, relativePathCopy);
+                        if (!File.Exists(fullPathFileCopy))
+                        {
+                            status = 404;
+                            statusText = "Not Found";
+                            return await BuildHttpResponse(status, statusText, Encoding.UTF8.GetBytes("Копируемый файл отсутствует"));
+                        }
+                        else if (fullPathFileCopy == fullPathFile)
+                        {
+                            status = 400;
+                            statusText = "Bad Request";
+                            return await BuildHttpResponse(status, statusText, Encoding.UTF8.GetBytes("Пути файлов для копирования совпадают"));
+                        }
+                        else
+                        {
+                            File.Copy(fullPathFileCopy, fullPathFile);
+                            return await BuildHttpResponse(status, statusText, Encoding.UTF8.GetBytes("Операция по копированию успешно проведена"));
+                        }
                     }
-                    break;
                 case "GET":
-
-                    break;
+                    if (isFile)
+                    {
+                        byte[] fileBytes = await File.ReadAllBytesAsync(fullPathFile);
+                        string contentType = GetContentType(fullPathFile); 
+                        return await BuildHttpResponse(200, "OK", fileBytes, contentType);
+                    }
+                    else if (isDirectory)
+                    {
+                        var dirInfo = new DirectoryInfo(fullPathFile);
+                        var items = dirInfo.GetFileSystemInfos().Select(fsi => new
+                            {
+                                name = fsi.Name,
+                                type = fsi is DirectoryInfo ? "directory" : "file",
+                                size = fsi is FileInfo fi ? fi.Length : (long?)null,
+                                lastModified = fsi.LastWriteTimeUtc.ToString("o")
+                            });
+                        string json = System.Text.Json.JsonSerializer.Serialize(items);
+                        byte[] jsonBytes = Encoding.UTF8.GetBytes(json);
+                        return await BuildHttpResponse(200, "OK", jsonBytes, "application/json");
+                    }
+                    else
+                    {
+                        return await BuildHttpResponse(404, "Not Found", Encoding.UTF8.GetBytes("Файл или каталог не найден"));
+                    }
                 case "HEAD":
-
-                    break;
+                    if (isFile)
+                    {
+                        var fileInfo = new FileInfo(fullPathFile);
+                        string contentType = GetContentType(fullPathFile);
+                        string statusLine = "HTTP/1.1 200 OK\r\n";
+                        string headers = $"Content-Type: {contentType}\r\nContent-Length: {fileInfo.Length}\r\nLast-Modified: {fileInfo.LastWriteTimeUtc.ToString("R")}\r\n\r\n";
+                        byte[] response = Encoding.ASCII.GetBytes(statusLine + headers);
+                        return response;
+                    }
+                    else if (isDirectory)
+                    {
+                        string statusLine = "HTTP/1.1 200 OK\r\n";
+                        string headers = "Content-Type: application/json\r\nContent-Length: 0\r\n\r\n";
+                        return Encoding.ASCII.GetBytes(statusLine + headers);
+                    }
+                    else
+                    {
+                        return await BuildHttpResponse(404, "Not Found");
+                    }
                 case "DELETE":
-
-                    break;
+                    if (isFile)
+                    {
+                        File.Delete(fullPathFile);
+                        return await BuildHttpResponse(200, "OK", Encoding.UTF8.GetBytes("Файл удалён"));
+                    }
+                    else if (isDirectory)
+                    {
+                        Directory.Delete(fullPathFile, true);
+                        return await BuildHttpResponse(200, "OK", Encoding.UTF8.GetBytes("Каталог удалён"));
+                    }
+                    else
+                    {
+                        return await BuildHttpResponse(404, "Not Found");
+                    }
                 default:
                     Console.WriteLine($"Получен неизвестный метод: {method}");
-                    return new byte[0];
+                    return await BuildHttpResponse(status, statusText, Encoding.UTF8.GetBytes($"Получен неизвестный метод: {method}"));
             }
-            return new byte[0];
+        }
+
+        public async Task<byte[]> BuildHttpResponse(int status, string statusText, byte[]? body = null, string contentType = "text/plain")
+        {
+            if (body == null) body = new byte[0];
+            string headers = $"HTTP/1.1 {status} {statusText}\r\nContent-Type: {contentType}\r\nContent-Length: {body.Length}\r\n\r\n";
+            byte[] headersBytes = Encoding.ASCII.GetBytes(headers);
+            byte[] fullHTTP = new byte[headersBytes.Length + body.Length];
+            Array.Copy(headersBytes, 0, fullHTTP, 0, headersBytes.Length);
+            Array.Copy(body, 0, fullHTTP, headersBytes.Length, body.Length);
+            return fullHTTP;
+        }
+
+        private string GetContentType(string filePath)
+        {
+            string ext = Path.GetExtension(filePath)?.ToLowerInvariant() ?? "";
+
+            switch (ext)
+            {
+                case ".txt":
+                case ".log":
+                    return "text/plain";
+                case ".html":
+                case ".htm":
+                    return "text/html";
+                case ".css":
+                    return "text/css";
+                case ".js":
+                    return "application/javascript";
+                case ".json":
+                    return "application/json";
+                case ".xml":
+                    return "application/xml";
+                case ".pdf":
+                    return "application/pdf";
+                case ".zip":
+                    return "application/zip";
+                case ".png":
+                    return "image/png";
+                case ".jpg":
+                case ".jpeg":
+                    return "image/jpeg";
+                case ".gif":
+                    return "image/gif";
+                case ".svg":
+                    return "image/svg+xml";
+                case ".ico":
+                    return "image/x-icon";
+                case ".mp3":
+                    return "audio/mpeg";
+                case ".mp4":
+                    return "video/mp4";
+                case ".webm":
+                    return "video/webm";
+                default:
+                    return "application/octet-stream";
+            }
         }
 
         public async Task SendAnswer(byte[] answer, Socket socket)
