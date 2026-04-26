@@ -40,6 +40,10 @@ namespace file_storage
                     {
                         await ReadHTTPFromClient(client);
                     }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Произошла ошибка: {e.Message}");
+                    }
                     finally
                     {
                         client.Shutdown(SocketShutdown.Send);
@@ -96,14 +100,14 @@ namespace file_storage
                 string[] parts = http.Split("\r\n");
                 foreach (string part in parts)
                 {
-                    if (part.StartsWith("Content-Length:"))
+                    if (part.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
                     {
                         int pos = part.IndexOf(':');
                         string value = part.Substring(pos + 1).Trim();
                         sizeBody = int.Parse(value);
                     }
                 }
-                if (sizeBody == -1) sizeBody = 0; // обработка того что заголовка Content-Length просто не было, фактически заглушка, нужно смотреть chanked ещё
+                if (sizeBody == -1) sizeBody = 0; // обработка того что заголовка Content-Length просто не было, фактически заглушка
             }
 
             if (data.Length == sizeBody + startBody) return true;
@@ -120,7 +124,7 @@ namespace file_storage
             string versionHTTP = firstParts[2];
 
             int status = 500;
-            string statusText = "";
+            string statusText = "Internal Server Error";
 
             string relativePath = Uri.UnescapeDataString(localPath);
             relativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
@@ -140,10 +144,14 @@ namespace file_storage
             switch (method)
             {
                 case "PUT":
+                    if (isDirectory)
+                    {
+                        return await BuildHttpResponse(400, "Bad Request", Encoding.UTF8.GetBytes("Попытка записать на место существующего каталога файл"));
+                    }
                     string? copyFromPath = null;
                     foreach (string part in parts)
                     {
-                        if (part.StartsWith("X-Copy-From:"))
+                        if (part.StartsWith("X-Copy-From:", StringComparison.OrdinalIgnoreCase))
                         {
                             int pos = part.IndexOf(':');
                             copyFromPath = part.Substring(pos + 1).Trim();
@@ -194,8 +202,9 @@ namespace file_storage
                     if (isFile)
                     {
                         byte[] fileBytes = await File.ReadAllBytesAsync(fullPathFile);
+                        var fileInfo = new FileInfo(fullPathFile);
                         string contentType = GetContentType(fullPathFile); 
-                        return await BuildHttpResponse(200, "OK", fileBytes, contentType);
+                        return await BuildHttpResponse(200, "OK", fileBytes, contentType, fileInfo);
                     }
                     else if (isDirectory)
                     {
@@ -205,7 +214,7 @@ namespace file_storage
                                 name = fsi.Name,
                                 type = fsi is DirectoryInfo ? "directory" : "file",
                                 size = fsi is FileInfo fi ? fi.Length : (long?)null,
-                                lastModified = fsi.LastWriteTimeUtc.ToString("o")
+                                lastModified = fsi.LastWriteTimeUtc.ToString("R")
                             });
                         string json = System.Text.Json.JsonSerializer.Serialize(items);
                         byte[] jsonBytes = Encoding.UTF8.GetBytes(json);
@@ -220,20 +229,15 @@ namespace file_storage
                     {
                         var fileInfo = new FileInfo(fullPathFile);
                         string contentType = GetContentType(fullPathFile);
-                        string statusLine = "HTTP/1.1 200 OK\r\n";
-                        string headers = $"Content-Type: {contentType}\r\nContent-Length: {fileInfo.Length}\r\nLast-Modified: {fileInfo.LastWriteTimeUtc.ToString("R")}\r\n\r\n";
-                        byte[] response = Encoding.ASCII.GetBytes(statusLine + headers);
-                        return response;
+                        return await BuildHttpResponse(200, "OK", null, contentType, fileInfo);
                     }
-                    else if (isDirectory)
+                    else if (isDirectory) // заглушка
                     {
-                        string statusLine = "HTTP/1.1 200 OK\r\n";
-                        string headers = "Content-Type: application/json\r\nContent-Length: 0\r\n\r\n";
-                        return Encoding.ASCII.GetBytes(statusLine + headers);
+                        return await BuildHttpResponse(200, "OK", null, "application/json");
                     }
                     else
                     {
-                        return await BuildHttpResponse(404, "Not Found");
+                        return await BuildHttpResponse(404, "Not Found", Encoding.UTF8.GetBytes("Файл или каталог не найден"));
                     }
                 case "DELETE":
                     if (isFile)
@@ -256,10 +260,20 @@ namespace file_storage
             }
         }
 
-        public async Task<byte[]> BuildHttpResponse(int status, string statusText, byte[]? body = null, string contentType = "text/plain")
+        // fileinfo указывается когда надо получить данные по последнему изменению файлов (не каталогов!) (get, head)
+        public async Task<byte[]> BuildHttpResponse(int status, string statusText, byte[]? body = null, string contentType = "text/plain", FileInfo fileInfo = null) 
         {
             if (body == null) body = new byte[0];
-            string headers = $"HTTP/1.1 {status} {statusText}\r\nContent-Type: {contentType}\r\nContent-Length: {body.Length}\r\n\r\n";
+            string headers = $"HTTP/1.1 {status} {statusText}\r\nContent-Type: {contentType}\r\n";
+            if (fileInfo != null)
+            {
+                headers += $"Content-Length: {fileInfo.Length}\r\nLast-Modified: {fileInfo.LastWriteTimeUtc.ToString("R")}\r\n\r\n";
+            }
+            else
+            {
+                headers += $"Content-Length: {body.Length}\r\n\r\n";
+            }
+
             byte[] headersBytes = Encoding.ASCII.GetBytes(headers);
             byte[] fullHTTP = new byte[headersBytes.Length + body.Length];
             Array.Copy(headersBytes, 0, fullHTTP, 0, headersBytes.Length);
