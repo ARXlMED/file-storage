@@ -22,17 +22,39 @@ namespace file_storage
             fileStorageIP = IPAddress.Parse(iPAddress);
             this.port = int.Parse(port);
             acceptClients = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            Console.WriteLine($"Файловое хранилище на IP адресе {fileStorageIP.ToString()} с портом {port} и путем {path} успешно создано");
+        }
+
+        private bool portAvalibale(IPAddress ip, int port)
+        {
+            try
+            {
+                using (var testSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                {
+                    testSocket.Bind(new IPEndPoint(ip, port));
+                    testSocket.Close();
+                    return true;
+                }
+            }
+            catch (SocketException)
+            {
+                return false;
+            }
         }
 
         public async Task StartWorking()
         {
             try
             {
+                while (!portAvalibale(fileStorageIP, port))
+                {
+                    port++;
+                }   
                 acceptClients.Bind(new IPEndPoint(fileStorageIP, port));
                 acceptClients.Listen(10);
                 isAlive = true;
-                
+                Console.WriteLine($"Файловое хранилище на IP адресе {fileStorageIP.ToString()} с портом {port} и путем {path} успешно создано");
+
+
                 while (isAlive)
                 {
                     Socket client = await acceptClients.AcceptAsync();
@@ -267,11 +289,11 @@ namespace file_storage
             string headers = $"HTTP/1.1 {status} {statusText}\r\nContent-Type: {contentType}\r\n";
             if (fileInfo != null)
             {
-                headers += $"Content-Length: {fileInfo.Length}\r\nLast-Modified: {fileInfo.LastWriteTimeUtc.ToString("R")}\r\n\r\n";
+                headers += $"Content-Length: {fileInfo.Length}\r\nLast-Modified: {fileInfo.LastWriteTimeUtc.ToString("R")}\r\nConnection: close\r\n\r\n";
             }
             else
             {
-                headers += $"Content-Length: {body.Length}\r\n\r\n";
+                headers += $"Content-Length: {body.Length}\r\nConnection: close\r\n\r\n";
             }
 
             byte[] headersBytes = Encoding.ASCII.GetBytes(headers);

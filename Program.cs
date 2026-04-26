@@ -6,7 +6,6 @@
         {
             FileStorageCore fileStorageCore = new FileStorageCore("FileStorage", "127.0.0.2", "12345");
             await fileStorageCore.StartWorking();
-            
         }
     }
 }

@@ -1,0 +1,67 @@
+C:\Users\user\Desktop\Учеба\КСиС\ЛР5\file-storage\App\FileStorage
+C:\Users\user\Desktop\Учеба\КСиС\ЛР5\file-storage\temp-files
+
+
+Фильтр для wireshark: ip.addr == 127.0.0.2
+
+ОБРАТИ ВНИМАНИЕ НА ПОРТ НА КОТОРОМ ЗАПУСТИЛОСТЬ ФАЙЛОВОЕ ХРАНИЛИЩЕ! СКОРЕЕ ВСЕГО 12345, НО НЕ ФАКТ
+
+
+
+										PUT
+
+
+1.
+curl --upload-file "C:\Users\user\Desktop\Учеба\КСиС\ЛР5\file-storage\temp-files\text.txt" http://127.0.0.2:12345/newtext.txt
+Загрузка txt файла в файловое хранилище (--upload-file и -T одно и тоже)
+2. 
+curl -T "C:\Users\user\Desktop\Учеба\КСиС\ЛР5\file-storage\temp-files\shakal.png" http://127.0.0.2:12345/images/shakal.png
+Загрузка png картинки в файловое хранилище в подкаталог images
+3.
+curl -T "C:\Users\user\Desktop\Учеба\КСиС\ЛР5\file-storage\temp-files\random_data.json" http://127.0.0.2:12345/data/random_data.json
+Загрузка json файла в файловое хранилище в подкаталог data
+4.
+curl --upload-file "C:\Users\user\Desktop\Учеба\КСиС\ЛР5\file-storage\temp-files\text.txt" http://127.0.0.2:12345/newtext.txt
+Перезапись файла, получение кода 200, а не 201
+										PUT X-COPY-FROM
+
+curl -X PUT -H "X-Copy-From: /images/shakal.png" --data "" http://127.0.0.2:12345/backup/shakal_copy.png
+curl -X PUT -H "X-Copy-From: /images/shakal.png" --data "" http://127.0.0.2:12345/shakal_copy2.png
+
+
+
+										GET
+
+
+1. 
+curl http://127.0.0.2:12345/newtext.txt
+Получить в консоль с curl текст 
+2. 
+curl -o downloaded_shakal.png http://127.0.0.2:12345/images/shakal.png
+Скачать файл в ту директорию откуда открыта консоль
+3. 
+http://127.0.0.2:12345/images/shakal.png 
+Запрос в браузере
+4. 
+curl http://127.0.0.2:12345
+Получает в формате json все данные о составе корневой папки (может долго выполнятся)
+
+
+
+										HEAD
+
+
+curl -I http://127.0.0.2:12345/images/shakal.png
+Получаем только заголовки с файла, причём content-len правильно высчитывается
+
+
+
+										DELETE
+
+
+1. 
+curl -X DELETE http://127.0.0.2:12345/newtext.txt
+Удаление файла
+2.
+curl -X DELETE http://127.0.0.2:12345/data
+Удаление каталога

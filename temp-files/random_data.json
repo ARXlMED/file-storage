@@ -1,0 +1,189 @@
+{
+    "metadata": {
+        "version": "1.2.0",
+        "generated_at": "2024-05-20T14:30:00Z",
+        "source": "random_generator"
+    },
+    "items": [
+        {
+            "id": 1,
+            "uuid": "uuid-8752",
+            "name": "Товар_663",
+            "category": "автотовары",
+            "price": 3176.68,
+            "currency": "RUB",
+            "in_stock": true,
+            "status": "в наличии",
+            "tags": [
+                "эко",
+                "скидка",
+                "премиум"
+            ],
+            "specs": {
+                "weight_kg": 4.4,
+                "rating": 1.6
+            }
+        },
+        {
+            "id": 2,
+            "uuid": "uuid-5820",
+            "name": "Товар_453",
+            "category": "одежда",
+            "price": 605.01,
+            "currency": "RUB",
+            "in_stock": false,
+            "status": "ожидается",
+            "tags": [
+                "скидка",
+                "новинка"
+            ],
+            "specs": {
+                "weight_kg": 6.7,
+                "rating": 1.6
+            }
+        },
+        {
+            "id": 3,
+            "uuid": "uuid-4233",
+            "name": "Товар_910",
+            "category": "автотовары",
+            "price": 1758.42,
+            "currency": "RUB",
+            "in_stock": false,
+            "status": "снято с производства",
+            "tags": [
+                "эко",
+                "новинка"
+            ],
+            "specs": {
+                "weight_kg": 9.5,
+                "rating": 2.1
+            }
+        },
+        {
+            "id": 4,
+            "uuid": "uuid-6251",
+            "name": "Товар_167",
+            "category": "одежда",
+            "price": 3514.48,
+            "currency": "RUB",
+            "in_stock": false,
+            "status": "снято с производства",
+            "tags": [
+                "хит",
+                "эко"
+            ],
+            "specs": {
+                "weight_kg": 6.9,
+                "rating": 4.5
+            }
+        },
+        {
+            "id": 5,
+            "uuid": "uuid-7472",
+            "name": "Товар_268",
+            "category": "дом и сад",
+            "price": 358.51,
+            "currency": "RUB",
+            "in_stock": true,
+            "status": "в наличии",
+            "tags": [
+                "эко",
+                "премиум",
+                "хит"
+            ],
+            "specs": {
+                "weight_kg": 0.1,
+                "rating": 2.5
+            }
+        },
+        {
+            "id": 6,
+            "uuid": "uuid-6541",
+            "name": "Товар_735",
+            "category": "электроника",
+            "price": 1915.23,
+            "currency": "RUB",
+            "in_stock": true,
+            "status": "в наличии",
+            "tags": [
+                "новинка",
+                "хит",
+                "скидка"
+            ],
+            "specs": {
+                "weight_kg": 7.5,
+                "rating": 2.4
+            }
+        },
+        {
+            "id": 7,
+            "uuid": "uuid-3085",
+            "name": "Товар_147",
+            "category": "дом и сад",
+            "price": 4741.84,
+            "currency": "RUB",
+            "in_stock": true,
+            "status": "в наличии",
+            "tags": [
+                "премиум",
+                "эко"
+            ],
+            "specs": {
+                "weight_kg": 8.3,
+                "rating": 4.5
+            }
+        },
+        {
+            "id": 8,
+            "uuid": "uuid-1018",
+            "name": "Товар_863",
+            "category": "электроника",
+            "price": 2862.5,
+            "currency": "RUB",
+            "in_stock": false,
+            "status": "в наличии",
+            "tags": [
+                "скидка"
+            ],
+            "specs": {
+                "weight_kg": 3.1,
+                "rating": 2.5
+            }
+        },
+        {
+            "id": 9,
+            "uuid": "uuid-9911",
+            "name": "Товар_825",
+            "category": "электроника",
+            "price": 2608.86,
+            "currency": "RUB",
+            "in_stock": true,
+            "status": "в наличии",
+            "tags": [
+                "эко"
+            ],
+            "specs": {
+                "weight_kg": 4.8,
+                "rating": 4.9
+            }
+        },
+        {
+            "id": 10,
+            "uuid": "uuid-4408",
+            "name": "Товар_570",
+            "category": "одежда",
+            "price": 3409.49,
+            "currency": "RUB",
+            "in_stock": true,
+            "status": "в наличии",
+            "tags": [
+                "хит"
+            ],
+            "specs": {
+                "weight_kg": 2.5,
+                "rating": 1.1
+            }
+        }
+    ]
+}
